@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ko" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커리큘럼 대시보드</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar for Tabs */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Smooth transitions */
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Modal Animation */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+
+    <!-- Header Section -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-4">
+            <!-- Developer Info -->
+            <div class="text-xs font-medium text-brand-600 dark:text-brand-400 mb-2 tracking-wide uppercase">
+                개발자: 가치있는 미래교육 연구소 대표 김병찬
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <!-- Dynamic Title -->
+                <h1 id="dashboard-title" class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                    <i class="fa-solid fa-circle-notch fa-spin text-brand-500 mr-2"></i>로딩중...
+                </h1>
+                
+                <!-- Controls -->
+                <div class="flex items-center space-x-3">
+                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="다크모드/라이트모드 전환">
+                        <i class="fa-solid fa-moon text-gray-600 dark:text-gray-300 text-lg hidden dark:block" id="theme-icon-dark"></i>
+                        <i class="fa-solid fa-sun text-yellow-500 text-lg block dark:hidden" id="theme-icon-light"></i>
+                    </button>
+                    
+                    <button id="admin-btn" class="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                        <i class="fa-solid fa-lock"></i>
+                        <span class="hidden sm:inline">관리자</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories / Tabs -->
+        <div class="border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav id="tabs-container" class="flex space-x-2 py-3 overflow-x-auto hide-scrollbar">
+                    <!-- Tabs will be dynamically inserted here -->
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- Loading State -->
+        <div id="loading-state" class="flex flex-col items-center justify-center py-20 hidden">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-brand-500 mb-4"></i>
+            <p class="text-gray-500 dark:text-gray-400">데이터를 실시간으로 동기화 중입니다...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="flex flex-col items-center justify-center py-20 hidden">
+            <i class="fa-regular fa-folder-open text-5xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500 dark:text-gray-400 text-lg">해당 카테고리에 데이터가 없습니다.</p>
+        </div>
+
+        <!-- Content Grid -->
+        <div id="content-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+
+    </main>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 transform transition-all modal-enter">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">관리자 모드</h3>
+                <button id="close-admin-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">인증번호를 입력해주세요.</p>
+            <input type="password" id="admin-pin-input" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none mb-4" placeholder="인증번호">
+            <p id="admin-error" class="text-red-500 text-sm hidden mb-4">인증번호가 일치하지 않습니다.</p>
+            <button id="verify-admin-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                확인 및 접속
+            </button>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 transform transition-all modal-enter flex flex-col items-center">
+            <div class="w-full flex justify-end mb-2">
+                <button id="close-qr-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </div>
+            <h3 id="qr-title" class="text-lg font-bold text-gray-900 mb-6 text-center w-full truncate px-2"></h3>
+            
+            <!-- QR Box with forced white background for scannability -->
+            <div id="qrcode-container" class="bg-white p-4 rounded-xl shadow-inner flex justify-center items-center w-64 h-64"></div>
+            
+            <p class="text-sm text-gray-500 mt-6 text-center">카메라로 스캔하여 접속하세요</p>
+            <button id="open-qr-link" class="mt-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors w-full">
+                <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i>직접 열기
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-6 py-3 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center">
+        <i class="fa-solid fa-check-circle text-green-400 dark:text-green-600 mr-2"></i>
+        <span id="toast-message">복사되었습니다!</span>
+    </div>
+
+    <script>
+        // --- App Configuration ---
+        const SHEET_ID = '1HdIy5OLRkd3azdVKM_jIt6GSZrr3QkvoXFoHvain37s';
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?usp=sharing`;
+        
+        // State
+        let adminPinCode = "";
+        let categories = [];
+        let activeCategory = "";
+        let qrModalLink = "";
+
+        // 초고속 로딩을 위한 캐시 만료 시간 설정 (5분)
+        const CACHE_EXPIRY = 5 * 60 * 1000; 
+
+        // DOM Elements
+        const DOM = {
+            title: document.getElementById('dashboard-title'),
+            tabsContainer: document.getElementById('tabs-container'),
+            contentGrid: document.getElementById('content-grid'),
+            loadingState: document.getElementById('loading-state'),
+            emptyState: document.getElementById('empty-state'),
+            
+            themeToggle: document.getElementById('theme-toggle'),
+            
+            adminBtn: document.getElementById('admin-btn'),
+            adminModal: document.getElementById('admin-modal'),
+            closeAdminModal: document.getElementById('close-admin-modal'),
+            adminPinInput: document.getElementById('admin-pin-input'),
+            verifyAdminBtn: document.getElementById('verify-admin-btn'),
+            adminError: document.getElementById('admin-error'),
+            
+            qrModal: document.getElementById('qr-modal'),
+            closeQrModal: document.getElementById('close-qr-modal'),
+            qrContainer: document.getElementById('qrcode-container'),
+            qrTitle: document.getElementById('qr-title'),
+            openQrLink: document.getElementById('open-qr-link'),
+            
+            toast: document.getElementById('toast'),
+            toastMessage: document.getElementById('toast-message'),
+        };
+
+        // --- Initialization ---
+        async function initApp() {
+            initTheme();
+            setupEventListeners();
+            
+            DOM.loadingState.classList.remove('hidden');
+            DOM.loadingState.querySelector('p').innerText = "초고속 데이터 동기화 중...";
+
+            // 병렬 처리로 설정과 카테고리를 동시에 불러와 속도 극대화
+            const [settingsData, discoveredCategories] = await Promise.all([
+                queryGViz('설정'),
+                discoverCategories()
+            ]);
+            
+            if (settingsData && settingsData.length > 0) {
+                // A2 is pin, B2 is title
+                const row = settingsData[0];
+                adminPinCode = (row && row.c && row.c[0] && row.c[0].v) ? row.c[0].v.toString() : "0000";
+                const dashboardTitle = (row && row.c && row.c[1] && row.c[1].v) ? row.c[1].v : "커리큘럼 대시보드";
+                DOM.title.innerHTML = dashboardTitle;
+                document.title = dashboardTitle;
+            } else {
+                DOM.title.innerHTML = "대시보드 로드 실패";
+                showToast("설정 시트를 읽어오는데 실패했습니다.", true);
+            }
+
+            categories = discoveredCategories;
+            
+            if (categories.length === 0) {
+                DOM.tabsContainer.innerHTML = `<span class="text-red-500 px-4 py-2">카테고리를 찾을 수 없습니다. 설정 시트 C열에 카테고리명을 입력해주세요.</span>`;
+                DOM.loadingState.classList.add('hidden');
+                return;
+            }
+
+            // 3. Render Tabs
+            renderTabs();
+
+            // 4. Load first category automatically
+            if (categories.length > 0) {
+                await loadCategoryData(categories[0]);
+            }
+        }
+
+        // --- Data Fetching Logic ---
+        
+        // 브라우저 세션 캐싱을 적용한 고속 GViz 데이터 페칭
+        async function queryGViz(sheetName, query = 'SELECT A, B, C OFFSET 1') {
+            const cacheKey = `gviz_${sheetName}_${query}`;
+            const cached = sessionStorage.getItem(cacheKey);
+            const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+            
+            // 5분 이내의 캐시 데이터가 있다면 서버 요청 없이 즉시 반환 (초고속 렌더링)
+            if (cached && cacheTime && (Date.now() - parseInt(cacheTime)) < CACHE_EXPIRY) {
+                return JSON.parse(cached);
+            }
+
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&tq=${encodeURIComponent(query)}`;
+            try {
+                const res = await fetch(url);
+                const text = await res.text();
+                
+                // Extract JSON safely without using complex regex lookbehinds (which causes SyntaxError on older engines)
+                const startIdx = text.indexOf('(');
+                const endIdx = text.lastIndexOf(')');
+                
+                if (startIdx !== -1 && endIdx !== -1) {
+                    const jsonString = text.substring(startIdx + 1, endIdx);
+                    const data = JSON.parse(jsonString);
+                    const rows = data.table.rows;
+                    
+                    // 성공적으로 데이터를 가져오면 캐시에 저장
+                    sessionStorage.setItem(cacheKey, JSON.stringify(rows));
+                    sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+                    
+                    return rows;
+                }
+                return [];
+            } catch (error) {
+                console.error(`Error fetching sheet: ${sheetName}`, error);
+                return null;
+            }
+        }
+
+        // 프록시 의존도를 낮춘 초고속 카테고리 감지
+        async function discoverCategories() {
+            // 1. 캐시된 카테고리가 있으면 즉시 반환
+            const cachedCats = sessionStorage.getItem('categories_cache');
+            if (cachedCats) return JSON.parse(cachedCats);
+
+            // 2. [가장 빠른 방법] '설정' 시트의 C열에서 카테고리 직접 읽기
+            const settingsData = await queryGViz('설정', 'SELECT C OFFSET 1');
+            if (settingsData && settingsData.length > 0) {
+                const fallbackCats = settingsData
+                    .map(row => (row && row.c && row.c[0]) ? row.c[0].v : null)
+                    .filter(val => val !== null && val !== undefined && val !== "");
+                
+                if (fallbackCats.length > 0) {
+                    sessionStorage.setItem('categories_cache', JSON.stringify(fallbackCats));
+                    return fallbackCats;
+                }
+            }
+
+            // 3. [최후의 수단] 외부 프록시를 통한 HTML 파싱 (타임아웃 3초 설정으로 무한 대기 방지)
+            try {
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`)}`;
+                
+                // 3초 안에 응답이 없으면 에러 발생
+                const response = await Promise.race([
+                    fetch(proxyUrl),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Proxy Timeout')), 3000))
+                ]);
+                
+                const html = await response.text();
+                const regex = /\[null,"([^"]+)",\d+,\d+/g;
+                let detectedSheets = new Set();
+                let match;
+                
+                // matchAll 대신 exec 루프 사용 (구형 환경 호환성 극대화)
+                while ((match = regex.exec(html)) !== null) {
+                    const name = match[1];
+                    if (name !== '설정' && !name.startsWith('Sheet')) {
+                        detectedSheets.add(name);
+                    }
+                }
+
+                const finalCategories = Array.from(detectedSheets);
+                if (finalCategories.length > 0) {
+                    sessionStorage.setItem('categories_cache', JSON.stringify(finalCategories));
+                    return finalCategories;
+                }
+                throw new Error("No categories detected via regex");
+            } catch (error) {
+                console.warn("Proxy auto-detection failed.", error);
+                return ["카테고리 감지 실패 (설정 시트 C열에 입력해주세요)"];
+            }
+        }
+
+        // Render Category Tabs
+        function renderTabs() {
+            DOM.tabsContainer.innerHTML = '';
+            categories.forEach(category => {
+                const btn = document.createElement('button');
+                btn.className = `px-5 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${
+                    activeCategory === category 
+                    ? 'bg-brand-600 text-white border-brand-600 shadow-sm' 
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700 hover:text-brand-600 dark:hover:text-brand-400'
+                }`;
+                btn.innerText = category;
+                btn.onclick = () => loadCategoryData(category);
+                DOM.tabsContainer.appendChild(btn);
+            });
+        }
+
+        // Load specific category data
+        async function loadCategoryData(category) {
+            activeCategory = category;
+            renderTabs(); // Update active state
+            
+            DOM.contentGrid.innerHTML = '';
+            DOM.emptyState.classList.add('hidden');
+            DOM.loadingState.classList.remove('hidden');
+
+            const rows = await queryGViz(category);
+            
+            DOM.loadingState.classList.add('hidden');
+
+            if (!rows || rows.length === 0) {
+                DOM.emptyState.classList.remove('hidden');
+                return;
+            }
+
+            rows.forEach(row => {
+                const title = (row && row.c && row.c[0]) ? row.c[0].v : '';
+                const link1 = (row && row.c && row.c[1]) ? row.c[1].v : '';
+                const link2 = (row && row.c && row.c[2]) ? row.c[2].v : '';
+
+                if (!title) return; // Skip if title is empty
+
+                const card = document.createElement('div');
+                card.className = 'bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col h-full relative overflow-hidden group';
+                
+                let contentHTML = `<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-400 to-brand-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>`;
+                contentHTML += `<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-5 line-clamp-2 leading-snug">${title}</h3>`;
+                contentHTML += `<div class="space-y-4 mt-auto flex-grow flex flex-col justify-end">`;
+                
+                contentHTML += createLinkUI(link1, "링크 1");
+                contentHTML += createLinkUI(link2, "링크 2 (보조)");
+                
+                contentHTML += `</div>`;
+                card.innerHTML = contentHTML;
+                DOM.contentGrid.appendChild(card);
+            });
+        }
+
+        // Create UI for a link/text cell
+        function createLinkUI(content, label) {
+            if (!content) return '';
+            
+            const contentStr = content.toString();
+            const isUrl = contentStr.startsWith('http://') || contentStr.startsWith('https://');
+            
+            // HTML 특수문자 이스케이프 (태그 깨짐 및 XSS 방지)
+            const escapeHTML = (str) => str.toString().replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
+            );
+            
+            const displayLabel = escapeHTML(label);
+            const displayContent = escapeHTML(contentStr);
+            
+            // data-* 속성용 안전한 URL 인코딩 (SyntaxError 원천 차단)
+            const safeContent = encodeURIComponent(contentStr);
+            const safeLabel = encodeURIComponent(label);
+            
+            if (isUrl) {
+                return `
+                    <div class="flex flex-col space-y-2 bg-gray-50/70 dark:bg-gray-700/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/50 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/60">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold tracking-wider text-brand-600 dark:text-brand-400 uppercase flex items-center"><i class="fa-solid fa-link mr-1.5 opacity-70"></i>${displayLabel}</span>
+                            <div class="flex space-x-1">
+                                <button data-url="${safeContent}" data-label="${safeLabel}" onclick="handleQRClick(this)" class="p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-md transition-colors" title="QR 코드 생성">
+                                    <i class="fa-solid fa-qrcode"></i>
+                                </button>
+                                <a href="${displayContent}" target="_blank" class="p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-md transition-colors" title="새 창 열기">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300 truncate" title="${displayContent}">
+                            <a href="${displayContent}" target="_blank" class="hover:underline hover:text-brand-500 transition-colors">
+                                ${displayContent}
+                            </a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex flex-col space-y-2 bg-gray-50/70 dark:bg-gray-700/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/50 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/60">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold tracking-wider text-brand-600 dark:text-brand-400 uppercase flex items-center"><i class="fa-regular fa-file-lines mr-1.5 opacity-70"></i>${displayLabel}</span>
+                            <button data-content="${safeContent}" onclick="handleCopyClick(this)" class="px-2.5 py-1.5 flex items-center space-x-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:border-brand-300 dark:hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors shadow-sm">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>복사</span>
+                            </button>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed whitespace-pre-line break-words" title="${displayLabel} 내용">${displayContent}</div>
+                            <button onclick="toggleTextExpansion(this)" class="text-xs text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 mt-1.5 font-medium inline-block transition-colors">
+                                더보기 <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Global Handlers for inline events (SyntaxError 방지)
+        window.handleQRClick = function(btn) {
+            const url = decodeURIComponent(btn.getAttribute('data-url') || '');
+            const label = decodeURIComponent(btn.getAttribute('data-label') || '');
+            openQRModal(url, label);
+        };
+
+        window.handleCopyClick = function(btn) {
+            const text = decodeURIComponent(btn.getAttribute('data-content') || '');
+            copyToClipboard(text);
+        };
+
+        // 텍스트 더보기/접기 토글 기능
+        window.toggleTextExpansion = function(btn) {
+            const textDiv = btn.previousElementSibling;
+            if (textDiv.classList.contains('line-clamp-2')) {
+                textDiv.classList.remove('line-clamp-2');
+                btn.innerHTML = '접기 <i class="fa-solid fa-chevron-up text-[10px] ml-0.5"></i>';
+            } else {
+                textDiv.classList.add('line-clamp-2');
+                btn.innerHTML = '더보기 <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>';
+            }
+        };
+
+        // Copy Text
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("복사되었습니다!");
+            }).catch(err => {
+                // Fallback for older browsers
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("복사되었습니다!");
+                } catch (err) {
+                    showToast("복사 실패", true);
+                }
+                document.body.removeChild(textArea);
+            });
+        }
+
+        // Toast Notification
+        let toastTimeout;
+        function showToast(message, isError = false) {
+            DOM.toastMessage.innerText = message;
+            const icon = DOM.toast.querySelector('i');
+            
+            if (isError) {
+                icon.className = "fa-solid fa-circle-exclamation text-red-400 mr-2";
+            } else {
+                icon.className = "fa-solid fa-check-circle text-green-400 dark:text-green-600 mr-2";
+            }
+
+            DOM.toast.classList.remove('opacity-0');
+            DOM.toast.classList.add('opacity-100');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                DOM.toast.classList.remove('opacity-100');
+                DOM.toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        // QR Modal Logic
+        let currentQRCode = null;
+        window.openQRModal = function(url, titleStr) {
+            DOM.qrTitle.innerText = titleStr || "QR 코드";
+            DOM.qrContainer.innerHTML = ''; // Clear previous
+            
+            // Generate New QR
+            currentQRCode = new QRCode(DOM.qrContainer, {
+                text: url,
+                width: 220,
+                height: 220,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            
+            qrModalLink = url;
+            
+            DOM.qrModal.classList.remove('hidden');
+            DOM.qrModal.classList.add('flex');
+            // Small delay to trigger animation
+            setTimeout(() => {
+                DOM.qrModal.children[0].classList.add('modal-enter-active');
+            }, 10);
+        };
+
+        function closeQRModal() {
+            DOM.qrModal.children[0].classList.remove('modal-enter-active');
+            setTimeout(() => {
+                DOM.qrModal.classList.add('hidden');
+                DOM.qrModal.classList.remove('flex');
+            }, 300);
+        }
+
+        // Admin Modal Logic
+        function openAdminModal() {
+            DOM.adminError.classList.add('hidden');
+            DOM.adminPinInput.value = '';
+            DOM.adminModal.classList.remove('hidden');
+            DOM.adminModal.classList.add('flex');
+            setTimeout(() => {
+                DOM.adminModal.children[0].classList.add('modal-enter-active');
+                DOM.adminPinInput.focus();
+            }, 10);
+        }
+
+        function closeAdminModal() {
+            DOM.adminModal.children[0].classList.remove('modal-enter-active');
+            setTimeout(() => {
+                DOM.adminModal.classList.add('hidden');
+                DOM.adminModal.classList.remove('flex');
+            }, 300);
+        }
+
+        function verifyAdmin() {
+            const input = DOM.adminPinInput.value;
+            if (input === adminPinCode || adminPinCode === "0000") {
+                // Correct PIN -> Open sheet
+                closeAdminModal();
+                window.open(SHEET_URL, '_blank');
+            } else {
+                DOM.adminError.classList.remove('hidden');
+                // Shake animation
+                DOM.adminModal.children[0].classList.add('animate-pulse');
+                setTimeout(() => DOM.adminModal.children[0].classList.remove('animate-pulse'), 500);
+            }
+        }
+
+        // Theme Setup
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        // Event Listeners setup
+        function setupEventListeners() {
+            // Theme toggle
+            DOM.themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                if (document.documentElement.classList.contains('dark')) {
+                    localStorage.theme = 'dark';
+                } else {
+                    localStorage.theme = 'light';
+                }
+            });
+
+            // Modals
+            DOM.adminBtn.addEventListener('click', openAdminModal);
+            DOM.closeAdminModal.addEventListener('click', closeAdminModal);
+            
+            DOM.closeQrModal.addEventListener('click', closeQRModal);
+            DOM.openQrLink.addEventListener('click', () => {
+                if(qrModalLink) window.open(qrModalLink, '_blank');
+            });
+
+            // Close modals on outside click
+            window.addEventListener('click', (e) => {
+                if (e.target === DOM.adminModal) closeAdminModal();
+                if (e.target === DOM.qrModal) closeQRModal();
+            });
+
+            // Admin verify triggers
+            DOM.verifyAdminBtn.addEventListener('click', verifyAdmin);
+            DOM.adminPinInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') verifyAdmin();
+            });
+        }
+
+        // Boot
+        window.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+</html>
